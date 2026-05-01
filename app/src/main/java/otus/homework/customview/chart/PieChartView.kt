@@ -50,6 +50,9 @@ class PieChartView @JvmOverloads constructor(
     
     private val labelTotal by lazy { context.getString(R.string.pie_total) }
     private val amountFormat by lazy { context.getString(R.string.pie_amount_format) }
+
+    private val defaultSizePx = (DEFAULT_SIZE_DP * resources.displayMetrics.density).toInt()
+    private val selectionOffsetPx = SELECTION_OFFSET_DP * resources.displayMetrics.density
     // -------------------------------------------
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -97,6 +100,14 @@ class PieChartView @JvmOverloads constructor(
             .mapValues { entry -> entry.value.sumOf { it.amount } }
         
         totalAmount = categoryMap.values.sum()
+
+        if (totalAmount <= 0) {
+            data = emptyList()
+            updateCenterTextCache()
+            invalidate()
+            return
+        }
+
         var startAngle = 0f
         
         data = categoryMap.entries.mapIndexed { index, entry ->
@@ -118,7 +129,7 @@ class PieChartView @JvmOverloads constructor(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val widthSize = MeasureSpec.getSize(widthMeasureSpec)
         val heightSize = MeasureSpec.getSize(heightMeasureSpec)
-        val size = min(widthSize, heightSize).let { if (it == 0) DEFAULT_SIZE_PX else it }
+        val size = min(widthSize, heightSize).let { if (it == 0) defaultSizePx else it }
 
         setMeasuredDimension(size, size)
         textPaint.textSize = size / PERCENT_TEXT_SIZE_RATIO
@@ -139,10 +150,10 @@ class PieChartView @JvmOverloads constructor(
         
         rectF.set(viewPadding, viewPadding, width - viewPadding, height - viewPadding)
         selectedRectF.set(
-            viewPadding - SELECTION_OFFSET_PX, 
-            viewPadding - SELECTION_OFFSET_PX, 
-            width - viewPadding + SELECTION_OFFSET_PX, 
-            height - viewPadding + SELECTION_OFFSET_PX
+            viewPadding - selectionOffsetPx, 
+            viewPadding - selectionOffsetPx, 
+            width - viewPadding + selectionOffsetPx, 
+            height - viewPadding + selectionOffsetPx
         )
         viewHoleRadius = (width / 2f - viewPadding) * HOLE_RADIUS_RATIO
     }
@@ -152,7 +163,7 @@ class PieChartView @JvmOverloads constructor(
         if (selectedCategory != null) {
             val selectedData = data.find { it.category == selectedCategory }
             val amount = selectedData?.amount ?: 0
-            val percentage = (amount.toFloat() / totalAmount * 100).toInt()
+            val percentage = if (totalAmount > 0) (amount.toFloat() / totalAmount * 100).toInt() else 0
             
             currentTitleText = selectedCategory!!
             currentAmountText = String.format(Locale.getDefault(), amountFormat, amount)
@@ -201,7 +212,7 @@ class PieChartView @JvmOverloads constructor(
         val x = (viewCenterX + radius * cos(medianAngleRad)).toFloat()
         val y = (viewCenterY + radius * sin(medianAngleRad)).toFloat()
         
-        val percentage = (pieData.amount.toFloat() / totalAmount * 100).toInt()
+        val percentage = if (totalAmount > 0) (pieData.amount.toFloat() / totalAmount * 100).toInt() else 0
         canvas.drawText(String.format(Locale.getDefault(), PERCENT_FORMAT, percentage), x, y + textPaint.textSize / 3f, textPaint)
     }
 
@@ -294,9 +305,9 @@ class PieChartView @JvmOverloads constructor(
 
     companion object {
         private const val FULL_CIRCLE_DEGREES = 360f
-        private const val DEFAULT_SIZE_PX = 400
+        private const val DEFAULT_SIZE_DP = 150
         private const val CHART_PADDING_RATIO = 0.12f
-        private const val SELECTION_OFFSET_PX = 20f
+        private const val SELECTION_OFFSET_DP = 8f
         private const val HOLE_RADIUS_RATIO = 0.55f
         private const val PERCENT_TEXT_RADIUS_RATIO = 0.75f
         
